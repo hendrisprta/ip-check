@@ -3,217 +3,207 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Advanced Bulk IP Geolocation</title>
+    <title>IP Tracker & Bulk Checker</title>
     <style>
         :root {
             --primary: #2563eb;
-            --success: #16a34a;
-            --danger: #dc2626;
-            --warning: #ea580c;
-            --bg: #f1f5f9;
-            --card: #ffffff;
+            --dark: #0f172a;
+            --success: #22c55e;
+            --danger: #ef4444;
         }
 
         body {
-            font-family: 'Inter', system-ui, -apple-system, sans-serif;
-            background-color: var(--bg);
-            color: #1e293b;
+            font-family: 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f8fafc;
             margin: 0;
             padding: 20px;
+            color: #334155;
         }
 
-        .container {
-            max-width: 1200px;
-            margin: auto;
-        }
+        .container { max-width: 1100px; margin: auto; }
 
-        /* Header Style untuk IP Saat Ini */
-        .current-ip-card {
-            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+        /* HEADER: Info IP Saat Ini */
+        .header-status {
+            background: var(--dark);
             color: white;
-            padding: 1.5rem;
-            border-radius: 12px;
-            margin-bottom: 25px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+            padding: 25px;
+            border-radius: 16px;
+            display: grid;
+            grid-template-columns: 1.5fr 1fr 1fr 1fr;
+            gap: 20px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 25px -5px rgba(0,0,0,0.2);
+            border: 1px solid rgba(255,255,255,0.1);
         }
 
-        .ip-info-main h3 { margin: 0; font-size: 0.9rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; }
-        .ip-info-main .ip-address { font-size: 2rem; font-weight: 800; margin: 5px 0; font-family: monospace; }
-        
-        .ip-details-grid { display: flex; gap: 20px; font-size: 0.9rem; }
-        .detail-item { background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
-        .detail-item span { display: block; font-size: 0.75rem; opacity: 0.7; }
+        .stat-group h4 { margin: 0 0 8px 0; font-size: 0.75rem; text-transform: uppercase; opacity: 0.6; letter-spacing: 1px; }
+        .stat-value { font-size: 1.1rem; font-weight: 600; word-break: break-all; }
+        .ip-large { font-size: 1.8rem; color: #60a5fa; font-family: 'Courier New', monospace; }
 
-        /* Main Content */
-        .main-card {
-            background: var(--card);
-            padding: 2rem;
-            border-radius: 12px;
+        /* CARD: Bulk Checker */
+        .card {
+            background: white;
+            padding: 25px;
+            border-radius: 16px;
             box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
         }
 
         textarea {
             width: 100%;
-            height: 120px;
-            padding: 12px;
+            height: 100px;
+            padding: 15px;
             border: 2px solid #e2e8f0;
-            border-radius: 8px;
+            border-radius: 10px;
+            box-sizing: border-box;
             font-family: monospace;
+            font-size: 14px;
             margin-bottom: 15px;
-            transition: border-color 0.2s;
         }
-        textarea:focus { outline: none; border-color: var(--primary); }
 
-        .controls { display: flex; gap: 15px; align-items: center; margin-bottom: 20px; }
-        
-        button {
+        .btn-check {
             background: var(--primary);
             color: white;
             border: none;
-            padding: 12px 24px;
+            padding: 12px 25px;
             border-radius: 8px;
             font-weight: 600;
             cursor: pointer;
+            transition: 0.2s;
         }
-        button:hover { opacity: 0.9; }
-        button:disabled { background: #94a3b8; }
+        .btn-check:hover { background: #1d4ed8; }
+        .btn-check:disabled { opacity: 0.5; }
 
-        /* Table Style */
-        .table-container { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
-        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-        th { background: #f8fafc; padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0; color: #64748b; }
-        td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
+        /* TABLE */
+        .table-wrapper { margin-top: 25px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; font-size: 14px; }
+        th { background: #f1f5f9; padding: 12px; text-align: left; color: #64748b; border-bottom: 2px solid #e2e8f0; }
+        td { padding: 12px; border-bottom: 1px solid #f1f5f9; }
 
-        .tag { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.7rem; }
-        .bg-success { background: #dcfce7; color: #166534; }
-        .bg-proxy { background: #fee2e2; color: #991b1b; }
+        .badge { padding: 4px 8px; border-radius: 5px; font-size: 11px; font-weight: 700; }
+        .badge-proxy { background: #fee2e2; color: #991b1b; }
+        .badge-clean { background: #dcfce7; color: #166534; }
     </style>
 </head>
 <body>
 
 <div class="container">
-    <div class="current-ip-card" id="currentIpHeader">
-        <div class="ip-info-main">
-            <h3>IP Anda Saat Ini</h3>
-            <div class="ip-address" id="myIp">Loading...</div>
-            <div id="myLocation" style="font-size: 0.9rem; opacity: 0.9;">Mendeteksi lokasi...</div>
+    <div class="header-status">
+        <div class="stat-group">
+            <h4>Alamat IP Anda</h4>
+            <div id="my-ip" class="stat-value ip-large">Mendeteksi...</div>
         </div>
-        <div class="ip-details-grid">
-            <div class="detail-item">
-                <span>ISP</span>
-                <b id="myIsp">-</b>
-            </div>
-            <div class="detail-item">
-                <span>Proxy/VPN</span>
-                <b id="myProxyStatus">-</b>
-            </div>
-            <div class="detail-item">
-                <span>ZIP</span>
-                <b id="myZip">-</b>
-            </div>
+        <div class="stat-group">
+            <h4>Lokasi & ZIP</h4>
+            <div id="my-loc" class="stat-value">-</div>
+        </div>
+        <div class="stat-group">
+            <h4>Penyedia (ISP)</h4>
+            <div id="my-isp" class="stat-value">-</div>
+        </div>
+        <div class="stat-group">
+            <h4>Status Proxy</h4>
+            <div id="my-proxy" class="stat-value">-</div>
         </div>
     </div>
 
-    <div class="main-card">
-        <h2 style="margin-top: 0;">Bulk Geolocation Checker</h2>
-        <textarea id="ipInput" placeholder="Tempel daftar IP di sini (satu per baris)..."></textarea>
+    <div class="card">
+        <h3 style="margin-top:0">Bulk IP Lookup</h3>
+        <p style="font-size: 0.9rem; color: #64748b;">Masukkan daftar IP (format IP:PORT:USER:PASS juga bisa, script akan otomatis membersihkannya).</p>
         
-        <div class="controls">
-            <button id="btnCheck" onclick="checkBulkIPs()">Mulai Pengecekan Massal</button>
-            <span id="progressStatus" style="color: #64748b; font-size: 0.9rem;"></span>
+        <textarea id="ipInput" placeholder="8.8.8.8&#10;1.1.1.1:80:user:pass"></textarea>
+        
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <button class="btn-check" id="btnRun" onclick="processBulk()">Mulai Cek Massal</button>
+            <span id="loader" style="display:none; font-size: 0.9rem; color: var(--primary);">⌛ Memproses...</span>
         </div>
 
-        <div class="table-container">
+        <div class="table-wrapper">
             <table>
                 <thead>
                     <tr>
                         <th>IP Address</th>
-                        <th>Country</th>
-                        <th>City</th>
+                        <th>Negara</th>
+                        <th>Kota</th>
                         <th>ZIP</th>
                         <th>ISP</th>
-                        <th>Type</th>
                         <th>Proxy?</th>
                     </tr>
                 </thead>
-                <tbody id="resultTable"></tbody>
+                <tbody id="resultBody"></tbody>
             </table>
         </div>
     </div>
 </div>
 
 <script>
-    // 1. Fungsi untuk cek IP user saat ini (dijalankan saat halaman load)
-    async function checkCurrentIP() {
+    // --- 1. OTOMATIS CEK IP SAAT INI (DI HEADER) ---
+    async function initHeader() {
         try {
-            const res = await fetch('https://i.pn/json/');
-            const data = await res.json();
+            const response = await fetch('https://i.pn/json/');
+            const data = await response.json();
             
-            document.getElementById('myIp').innerText = data.query;
-            document.getElementById('myLocation').innerText = `${data.city}, ${data.country} (${data.continent})`;
-            document.getElementById('myIsp').innerText = data.isp || data.org;
-            document.getElementById('myZip').innerText = data.zip || '-';
+            document.getElementById('my-ip').innerText = data.query;
+            document.getElementById('my-loc').innerText = `${data.city}, ${data.countryCode} (${data.zip})`;
+            document.getElementById('my-isp').innerText = data.isp || data.org;
             
-            const proxyEl = document.getElementById('myProxyStatus');
-            if(data.proxy) {
-                proxyEl.innerText = "Terdeteksi (YES)";
-                proxyEl.style.color = "#f87171";
+            const proxyStatus = document.getElementById('my-proxy');
+            if (data.proxy) {
+                proxyStatus.innerHTML = '<span style="color:var(--danger)">TERDETEKSI (YES)</span>';
             } else {
-                proxyEl.innerText = "Bersih (NO)";
-                proxyEl.style.color = "#4ade80";
+                proxyStatus.innerHTML = '<span style="color:var(--success)">BERSIH (NO)</span>';
             }
-        } catch (e) {
-            document.getElementById('myIp').innerText = "Gagal memuat";
+        } catch (err) {
+            document.getElementById('my-ip').innerText = "Gagal Load";
+            console.error("Gagal mengambil IP header:", err);
         }
     }
 
-    // 2. Fungsi untuk cek banyak IP
-    async function checkBulkIPs() {
+    // --- 2. FUNGSI CEK MASSAL ---
+    async function processBulk() {
         const input = document.getElementById('ipInput').value;
+        const btn = document.getElementById('btnRun');
+        const loader = document.getElementById('loader');
+        const tbody = document.getElementById('resultBody');
+
         const lines = input.split('\n').filter(l => l.trim() !== "");
-        const tableBody = document.getElementById('resultTable');
-        const btn = document.getElementById('btnCheck');
-        
-        if(lines.length === 0) return alert("Masukkan IP!");
+        if (lines.length === 0) return alert("Input kosong!");
 
-        tableBody.innerHTML = "";
         btn.disabled = true;
+        loader.style.display = "inline";
+        tbody.innerHTML = "";
 
-        for(let i=0; i < lines.length; i++) {
-            const ipOnly = lines[i].split(':')[0].trim();
-            document.getElementById('progressStatus').innerText = `Proses: ${i+1}/${lines.length}`;
+        for (let line of lines) {
+            // Ambil IP saja (sebelum titik dua pertama)
+            const ip = line.split(':')[0].trim();
 
             try {
-                const res = await fetch(`https://i.pn/json/${ipOnly}?fields=query,status,country,city,zip,isp,proxy,type`);
-                const data = await res.json();
-                
+                const res = await fetch(`https://i.pn/json/${ip}?fields=query,status,country,city,zip,isp,proxy`);
+                const d = await res.json();
+
                 const row = `
                     <tr>
-                        <td><b>${data.query}</b></td>
-                        <td>${data.country || '-'}</td>
-                        <td>${data.city || '-'}</td>
-                        <td><code>${data.zip || '-'}</code></td>
-                        <td>${data.isp || '-'}</td>
-                        <td>${data.type === 3 ? 'Mobile' : 'Other'}</td>
-                        <td><span class="tag ${data.proxy ? 'bg-proxy' : 'bg-success'}">${data.proxy ? 'YES' : 'NO'}</span></td>
+                        <td><b>${d.query}</b></td>
+                        <td>${d.country}</td>
+                        <td>${d.city}</td>
+                        <td><code>${d.zip}</code></td>
+                        <td>${d.isp}</td>
+                        <td><span class="badge ${d.proxy ? 'badge-proxy' : 'badge-clean'}">${d.proxy ? 'YES' : 'NO'}</span></td>
                     </tr>
                 `;
-                tableBody.insertAdjacentHTML('beforeend', row);
-            } catch(e) {
-                tableBody.insertAdjacentHTML('beforeend', `<tr><td colspan="7" style="color:red">Gagal: ${ipOnly}</td></tr>`);
+                tbody.insertAdjacentHTML('beforeend', row);
+            } catch (e) {
+                tbody.insertAdjacentHTML('beforeend', `<tr><td colspan="6" style="color:red">Error: ${ip}</td></tr>`);
             }
-            await new Promise(r => setTimeout(r, 100)); // Jeda sedikit
+            // Jeda 200ms agar API tidak overload
+            await new Promise(r => setTimeout(r, 200));
         }
-        
+
         btn.disabled = false;
-        document.getElementById('progressStatus').innerText = "Selesai!";
+        loader.style.display = "none";
     }
 
-    // Jalankan deteksi IP awal
-    checkCurrentIP();
+    // Jalankan pengecekan header saat window dibuka
+    window.onload = initHeader;
 </script>
 
 </body>
