@@ -1,0 +1,220 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Advanced Bulk IP Geolocation</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --success: #16a34a;
+            --danger: #dc2626;
+            --warning: #ea580c;
+            --bg: #f1f5f9;
+            --card: #ffffff;
+        }
+
+        body {
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            background-color: var(--bg);
+            color: #1e293b;
+            margin: 0;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: auto;
+        }
+
+        /* Header Style untuk IP Saat Ini */
+        .current-ip-card {
+            background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+            color: white;
+            padding: 1.5rem;
+            border-radius: 12px;
+            margin-bottom: 25px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1);
+        }
+
+        .ip-info-main h3 { margin: 0; font-size: 0.9rem; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px; }
+        .ip-info-main .ip-address { font-size: 2rem; font-weight: 800; margin: 5px 0; font-family: monospace; }
+        
+        .ip-details-grid { display: flex; gap: 20px; font-size: 0.9rem; }
+        .detail-item { background: rgba(255,255,255,0.1); padding: 8px 15px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.1); }
+        .detail-item span { display: block; font-size: 0.75rem; opacity: 0.7; }
+
+        /* Main Content */
+        .main-card {
+            background: var(--card);
+            padding: 2rem;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+        }
+
+        textarea {
+            width: 100%;
+            height: 120px;
+            padding: 12px;
+            border: 2px solid #e2e8f0;
+            border-radius: 8px;
+            font-family: monospace;
+            margin-bottom: 15px;
+            transition: border-color 0.2s;
+        }
+        textarea:focus { outline: none; border-color: var(--primary); }
+
+        .controls { display: flex; gap: 15px; align-items: center; margin-bottom: 20px; }
+        
+        button {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        button:hover { opacity: 0.9; }
+        button:disabled { background: #94a3b8; }
+
+        /* Table Style */
+        .table-container { overflow-x: auto; border: 1px solid #e2e8f0; border-radius: 8px; }
+        table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+        th { background: #f8fafc; padding: 12px; text-align: left; border-bottom: 2px solid #e2e8f0; color: #64748b; }
+        td { padding: 12px; border-bottom: 1px solid #e2e8f0; }
+
+        .tag { padding: 4px 8px; border-radius: 4px; font-weight: bold; font-size: 0.7rem; }
+        .bg-success { background: #dcfce7; color: #166534; }
+        .bg-proxy { background: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <div class="current-ip-card" id="currentIpHeader">
+        <div class="ip-info-main">
+            <h3>IP Anda Saat Ini</h3>
+            <div class="ip-address" id="myIp">Loading...</div>
+            <div id="myLocation" style="font-size: 0.9rem; opacity: 0.9;">Mendeteksi lokasi...</div>
+        </div>
+        <div class="ip-details-grid">
+            <div class="detail-item">
+                <span>ISP</span>
+                <b id="myIsp">-</b>
+            </div>
+            <div class="detail-item">
+                <span>Proxy/VPN</span>
+                <b id="myProxyStatus">-</b>
+            </div>
+            <div class="detail-item">
+                <span>ZIP</span>
+                <b id="myZip">-</b>
+            </div>
+        </div>
+    </div>
+
+    <div class="main-card">
+        <h2 style="margin-top: 0;">Bulk Geolocation Checker</h2>
+        <textarea id="ipInput" placeholder="Tempel daftar IP di sini (satu per baris)..."></textarea>
+        
+        <div class="controls">
+            <button id="btnCheck" onclick="checkBulkIPs()">Mulai Pengecekan Massal</button>
+            <span id="progressStatus" style="color: #64748b; font-size: 0.9rem;"></span>
+        </div>
+
+        <div class="table-container">
+            <table>
+                <thead>
+                    <tr>
+                        <th>IP Address</th>
+                        <th>Country</th>
+                        <th>City</th>
+                        <th>ZIP</th>
+                        <th>ISP</th>
+                        <th>Type</th>
+                        <th>Proxy?</th>
+                    </tr>
+                </thead>
+                <tbody id="resultTable"></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+    // 1. Fungsi untuk cek IP user saat ini (dijalankan saat halaman load)
+    async function checkCurrentIP() {
+        try {
+            const res = await fetch('https://i.pn/json/');
+            const data = await res.json();
+            
+            document.getElementById('myIp').innerText = data.query;
+            document.getElementById('myLocation').innerText = `${data.city}, ${data.country} (${data.continent})`;
+            document.getElementById('myIsp').innerText = data.isp || data.org;
+            document.getElementById('myZip').innerText = data.zip || '-';
+            
+            const proxyEl = document.getElementById('myProxyStatus');
+            if(data.proxy) {
+                proxyEl.innerText = "Terdeteksi (YES)";
+                proxyEl.style.color = "#f87171";
+            } else {
+                proxyEl.innerText = "Bersih (NO)";
+                proxyEl.style.color = "#4ade80";
+            }
+        } catch (e) {
+            document.getElementById('myIp').innerText = "Gagal memuat";
+        }
+    }
+
+    // 2. Fungsi untuk cek banyak IP
+    async function checkBulkIPs() {
+        const input = document.getElementById('ipInput').value;
+        const lines = input.split('\n').filter(l => l.trim() !== "");
+        const tableBody = document.getElementById('resultTable');
+        const btn = document.getElementById('btnCheck');
+        
+        if(lines.length === 0) return alert("Masukkan IP!");
+
+        tableBody.innerHTML = "";
+        btn.disabled = true;
+
+        for(let i=0; i < lines.length; i++) {
+            const ipOnly = lines[i].split(':')[0].trim();
+            document.getElementById('progressStatus').innerText = `Proses: ${i+1}/${lines.length}`;
+
+            try {
+                const res = await fetch(`https://i.pn/json/${ipOnly}?fields=query,status,country,city,zip,isp,proxy,type`);
+                const data = await res.json();
+                
+                const row = `
+                    <tr>
+                        <td><b>${data.query}</b></td>
+                        <td>${data.country || '-'}</td>
+                        <td>${data.city || '-'}</td>
+                        <td><code>${data.zip || '-'}</code></td>
+                        <td>${data.isp || '-'}</td>
+                        <td>${data.type === 3 ? 'Mobile' : 'Other'}</td>
+                        <td><span class="tag ${data.proxy ? 'bg-proxy' : 'bg-success'}">${data.proxy ? 'YES' : 'NO'}</span></td>
+                    </tr>
+                `;
+                tableBody.insertAdjacentHTML('beforeend', row);
+            } catch(e) {
+                tableBody.insertAdjacentHTML('beforeend', `<tr><td colspan="7" style="color:red">Gagal: ${ipOnly}</td></tr>`);
+            }
+            await new Promise(r => setTimeout(r, 100)); // Jeda sedikit
+        }
+        
+        btn.disabled = false;
+        document.getElementById('progressStatus').innerText = "Selesai!";
+    }
+
+    // Jalankan deteksi IP awal
+    checkCurrentIP();
+</script>
+
+</body>
+</html>
