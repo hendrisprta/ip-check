@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>IP Tracker & Bulk Checker - PRO</title>
+    <title>IP Tracker & Bulk Checker - Fixed</title>
     <style>
         :root {
             --primary: #2563eb;
@@ -23,7 +23,7 @@
 
         .container { max-width: 1100px; margin: auto; }
 
-        /* HEADER: Status IP Perangkat Sekarang */
+        /* HEADER */
         .header-ip {
             background: linear-gradient(135deg, var(--dark) 0%, #1e293b 100%);
             color: white;
@@ -34,22 +34,19 @@
             gap: 25px;
             margin-bottom: 30px;
             box-shadow: 0 10px 30px -5px rgba(0,0,0,0.3);
-            border: 1px solid rgba(255,255,255,0.1);
         }
 
         .stat-box h4 { margin: 0 0 10px 0; font-size: 0.7rem; text-transform: uppercase; opacity: 0.5; letter-spacing: 1.5px; }
         .stat-value { font-size: 1.1rem; font-weight: 600; }
         .ip-display { font-size: 2.2rem; color: #60a5fa; font-family: 'Monaco', monospace; margin-top: 5px; }
 
-        /* CARD: Bulk Checker Area */
+        /* MAIN CARD */
         .main-card {
             background: white;
             padding: 30px;
             border-radius: 20px;
             box-shadow: 0 4px 20px -2px rgba(0,0,0,0.05);
         }
-
-        h2 { margin-top: 0; color: var(--dark); font-size: 1.5rem; }
 
         textarea {
             width: 100%;
@@ -58,12 +55,9 @@
             border: 2px solid #e2e8f0;
             border-radius: 12px;
             font-family: 'Consolas', monospace;
-            font-size: 14px;
             margin-bottom: 20px;
-            resize: vertical;
-            transition: border-color 0.3s;
+            box-sizing: border-box;
         }
-        textarea:focus { outline: none; border-color: var(--primary); }
 
         .btn-action {
             background: var(--primary);
@@ -73,25 +67,17 @@
             border-radius: 10px;
             font-weight: 700;
             cursor: pointer;
-            transition: all 0.3s;
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
         }
-        .btn-action:hover { background: #1d4ed8; transform: translateY(-1px); }
-        .btn-action:disabled { background: #cbd5e1; cursor: not-allowed; }
+        .btn-action:disabled { background: #cbd5e1; }
 
-        /* TABEL HASIL */
         .table-container { margin-top: 30px; overflow-x: auto; border-radius: 12px; border: 1px solid #e2e8f0; }
         table { width: 100%; border-collapse: collapse; background: white; min-width: 800px; }
-        th { background: #f8fafc; padding: 15px; text-align: left; font-size: 0.8rem; text-transform: uppercase; color: var(--gray); border-bottom: 2px solid #f1f5f9; }
+        th { background: #f8fafc; padding: 15px; text-align: left; font-size: 0.8rem; color: var(--gray); border-bottom: 2px solid #f1f5f9; }
         td { padding: 15px; border-bottom: 1px solid #f1f5f9; font-size: 0.9rem; }
 
         .badge { padding: 5px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: 800; }
         .bg-safe { background: #dcfce7; color: #15803d; }
         .bg-risk { background: #fee2e2; color: #b91c1c; }
-        
-        #loading-text { color: var(--primary); font-weight: 600; font-size: 0.9rem; margin-left: 15px; display: none; }
     </style>
 </head>
 <body>
@@ -111,22 +97,18 @@
             <div id="my-isp" class="stat-value">-</div>
         </div>
         <div class="stat-box">
-            <h4>Keamanan (Proxy)</h4>
+            <h4>Status Proxy</h4>
             <div id="my-proxy" class="stat-value">-</div>
         </div>
     </div>
 
     <div class="main-card">
         <h2>Bulk IP Geolocation Tool</h2>
-        <p style="color: var(--gray); margin-bottom: 20px;">Masukkan daftar IP (Bisa format raw <code>IP:Port:User:Pass</code> atau IP saja per baris).</p>
+        <textarea id="ipInput" placeholder="Masukkan daftar IP per baris..."></textarea>
         
-        <textarea id="ipInput" placeholder="Contoh:&#10;176.130.234.45&#10;8.8.8.8:80:admin:123"></textarea>
-        
-        <div style="display: flex; align-items: center;">
-            <button class="btn-action" id="btnCheck" onclick="runBulkCheck()">
-                Mulai Cek Massal
-            </button>
-            <span id="loading-text">⌛ Menghubungi API...</span>
+        <div style="display: flex; align-items: center; gap: 15px;">
+            <button class="btn-action" id="btnCheck" onclick="runBulkCheck()">Mulai Cek Massal</button>
+            <span id="loading-text" style="display:none; color: var(--primary); font-weight: 600;">⌛ Memproses...</span>
         </div>
 
         <div class="table-container">
@@ -141,99 +123,91 @@
                         <th>Proxy?</th>
                     </tr>
                 </thead>
-                <tbody id="resultBody">
-                    </tbody>
+                <tbody id="resultBody"></tbody>
             </table>
         </div>
     </div>
 </div>
 
 <script>
-    /**
-     * 1. Deteksi IP Perangkat Secara Langsung (Header)
-     * Menggunakan Cache-Busting agar Vercel/Hosting tidak memberikan data lama.
-     */
+    // Fungsi Deteksi IP di Header (Dibuat lebih kuat)
     async function detectMyIP() {
+        const myIpEl = document.getElementById('my-ip');
+        const myLocEl = document.getElementById('my-loc');
+        const myIspEl = document.getElementById('my-isp');
+        const myProxyEl = document.getElementById('my-proxy');
+
         try {
-            // Gunakan timestamp untuk bypass server cache
-            const cacheBust = new Date().getTime();
-            const response = await fetch(`https://i.pn/json/?nocache=${cacheBust}`, {
-                cache: 'no-store',
-                headers: { 'Cache-Control': 'no-cache' }
+            // Kita coba i.pn dulu dengan cache busting
+            const response = await fetch(`https://i.pn/json/?_=${Date.now()}`, {
+                method: 'GET',
+                headers: { 'Accept': 'application/json' }
             });
+            
+            if (!response.ok) throw new Error('i.pn fail');
+            
             const data = await response.json();
+            myIpEl.innerText = data.query;
+            myLocEl.innerText = `${data.city}, ${data.countryCode} (${data.zip || '-'})`;
+            myIspEl.innerText = data.isp || data.org || '-';
+            myProxyEl.innerHTML = data.proxy ? '<span style="color:var(--danger)">YES 🛡️</span>' : '<span style="color:var(--success)">NO ✅</span>';
             
-            document.getElementById('my-ip').innerText = data.query;
-            document.getElementById('my-loc').innerText = `${data.city}, ${data.countryCode} (${data.zip || 'No Zip'})`;
-            document.getElementById('my-isp').innerText = data.isp || data.org || '-';
-            
-            const proxyBox = document.getElementById('my-proxy');
-            if (data.proxy) {
-                proxyBox.innerHTML = '<span style="color:var(--danger)">⚠️ YES (PROXIED)</span>';
-            } else {
-                proxyBox.innerHTML = '<span style="color:var(--success)">✅ NO (CLEAN)</span>';
-            }
         } catch (error) {
-            document.getElementById('my-ip').innerText = "Koneksi Error";
-            console.error("Header IP Error:", error);
+            // Jika i.pn error, gunakan backup API (ip-api.com)
+            try {
+                const resBackup = await fetch('https://ipapi.co/json/');
+                const d = await resBackup.json();
+                myIpEl.innerText = d.ip;
+                myLocEl.innerText = `${d.city}, ${d.country_code} (${d.postal})`;
+                myIspEl.innerText = d.org;
+                myProxyEl.innerText = "N/A (Backup Mode)";
+            } catch (err2) {
+                myIpEl.innerText = "Koneksi Lemah";
+            }
         }
     }
 
-    /**
-     * 2. Proses Cek Banyak IP Sekaligus
-     */
+    // Fungsi Bulk Check
     async function runBulkCheck() {
         const input = document.getElementById('ipInput').value;
+        const tbody = document.getElementById('resultBody');
         const btn = document.getElementById('btnCheck');
         const loader = document.getElementById('loading-text');
-        const tbody = document.getElementById('resultBody');
 
-        const lines = input.split('\n').filter(line => line.trim() !== "");
-        if (lines.length === 0) return alert("Masukkan minimal satu IP!");
+        const lines = input.split('\n').filter(l => l.trim() !== "");
+        if (lines.length === 0) return alert("Masukkan IP!");
 
-        // Reset UI
         tbody.innerHTML = "";
         btn.disabled = true;
         loader.style.display = "inline";
 
-        for (let i = 0; i < lines.length; i++) {
-            // Bersihkan baris (hanya ambil IP sebelum titik dua pertama)
-            const cleanIp = lines[i].split(':')[0].trim();
-            const ts = new Date().getTime();
-
+        for (let line of lines) {
+            const ip = line.split(':')[0].trim();
             try {
-                // Request ke API dengan field zip disertakan
-                const res = await fetch(`https://i.pn/json/${cleanIp}?fields=query,status,country,city,zip,isp,proxy&t=${ts}`);
+                const res = await fetch(`https://i.pn/json/${ip}?fields=query,status,country,city,zip,isp,proxy&_=${Date.now()}`);
                 const d = await res.json();
 
                 const row = `
                     <tr>
-                        <td><strong>${d.query || cleanIp}</strong></td>
+                        <td><strong>${d.query || ip}</strong></td>
                         <td>${d.country || '-'}</td>
                         <td>${d.city || '-'}</td>
                         <td><code>${d.zip || '-'}</code></td>
                         <td>${d.isp || '-'}</td>
-                        <td>
-                            <span class="badge ${d.proxy ? 'bg-risk' : 'bg-safe'}">
-                                ${d.proxy ? 'YES 🛡️' : 'NO'}
-                            </span>
-                        </td>
-                    </tr>
-                `;
+                        <td><span class="badge ${d.proxy ? 'bg-risk' : 'bg-safe'}">${d.proxy ? 'YES' : 'NO'}</span></td>
+                    </tr>`;
                 tbody.insertAdjacentHTML('beforeend', row);
-            } catch (err) {
-                tbody.insertAdjacentHTML('beforeend', `<tr><td colspan="6" style="color:red">Gagal mengecek IP: ${cleanIp}</td></tr>`);
+            } catch (e) {
+                tbody.insertAdjacentHTML('beforeend', `<tr><td colspan="6" style="color:red">Error pada IP: ${ip}</td></tr>`);
             }
-            
-            // Jeda 200ms untuk menghindari rate limit API
-            await new Promise(resolve => setTimeout(resolve, 200));
+            await new Promise(r => setTimeout(r, 300)); // Jeda 0.3 detik agar tidak diblokir
         }
 
         btn.disabled = false;
         loader.style.display = "none";
     }
 
-    // Jalankan deteksi IP perangkat otomatis saat halaman siap
+    // Jalankan otomatis
     document.addEventListener('DOMContentLoaded', detectMyIP);
 </script>
 
